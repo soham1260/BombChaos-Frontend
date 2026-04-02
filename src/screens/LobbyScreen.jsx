@@ -34,10 +34,6 @@ export default function LobbyScreen() {
     const me = roomState?.players?.find(p => p.id === mySocketId);
 
     useEffect(() => {
-        // Always fetch the current room state when entering the lobby so
-        // we reflect the real server phase (important after "Go to Lobby" from results).
-        socket.emit('request_room_state');
-
         socket.on('chat_message', (msg) => {
             setChatMessages(prev => [...prev, msg].slice(-50));
             setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 50);
@@ -61,6 +57,26 @@ export default function LobbyScreen() {
         setChatInput('');
     }
 
+    function handleTaunt() {
+        const t = TAUNT_LIST[Math.floor(Math.random() * TAUNT_LIST.length)];
+        socket.emit('player_taunt', { taunt: t });
+    }
+
+    function handleLeave() {
+        resetAll();
+        socket.disconnect();
+        setTimeout(() => socket.connect(), 100);
+    }
+
+    function handleCharSelect(char) {
+        socket.emit('select_character', { character: char });
+    }
+
+    const allSlots = Array.from({ length: 4 }, (_, i) => {
+        const player = roomState?.players?.find(p => p.slotIndex === i);
+        return { index: i, player };
+    });
+
     return (
         <div className="w-full h-full flex flex-col"
             style={{ background: 'radial-gradient(ellipse at top, #1a0500 0%, #0a0a0f 60%)' }}>
@@ -83,7 +99,92 @@ export default function LobbyScreen() {
                     className="text-slate-500 hover:text-red-400 transition text-sm">✕ Leave</button>
             </div>
 
-            <div className="flex flex-1 gap-4 p-4 overflow-hidden">                
+            <div className="flex flex-1 gap-4 p-4 overflow-hidden">
+                {/* Player slots */}
+                <div className="flex-1 space-y-3">
+                    <h2 className="text-slate-400 text-sm uppercase tracking-widest mb-3">Players</h2>
+                    {allSlots.map(({ index, player }) => {
+                        const colors = ['red', 'blue', 'green', 'yellow'];
+                        const color = colors[index];
+                        const isMe = player?.id === mySocketId;
+
+                        return (
+                            <motion.div
+                                key={index}
+                                layout
+                                className={`glass rounded-xl p-4 border-2 transition-all ${player ? SLOT_COLORS[color] : 'border-white/10'}`}
+                            >
+                                {player ? (
+                                    <div className="flex items-center gap-4">
+                                        {/* Character avatar */}
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl glass border border-white/20">
+                                            {CHAR_EMOJIS[CHARACTERS.indexOf(player.character) ?? 0]}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`font-bold ${SLOT_TEXT[color]}`}>{player.nickname}</span>
+                                                {player.isHost && <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">HOST</span>}
+                                                {isMe && <span className="text-xs bg-white/10 text-slate-400 px-2 py-0.5 rounded">YOU</span>}
+                                            </div>
+                                            {/* Character picker for self */}
+                                            {isMe && (
+                                                <div className="flex gap-2 mt-2">
+                                                    {CHARACTERS.map((c, ci) => (
+                                                        <button key={c}
+                                                            onClick={() => handleCharSelect(c)}
+                                                            className={`w-8 h-8 rounded-lg text-lg transition-all ${player.character === c ? 'ring-2 ring-orange-400 bg-orange-500/20' : 'bg-white/5 hover:bg-white/10'}`}
+                                                        >
+                                                            {CHAR_EMOJIS[ci]}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2">
+                                            {(player.ready || player.isHost)
+                                                ? <span className="text-green-400 text-sm font-bold">✓ READY</span>
+                                                : <span className="text-slate-500 text-sm">Not Ready</span>
+                                            }
+                                            {isMe && !player.isHost && (
+                                                <button
+                                                    onClick={handleReady}
+                                                    className={`btn-neon text-sm px-3 py-1 ${player.ready ? 'border-red-400 text-red-400' : 'border-green-400 text-green-400'}`}
+                                                >
+                                                    {player.ready ? 'UNREADY' : 'READY'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-3 opacity-30">
+                                        <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/30 flex items-center justify-center text-xl">
+                                            +
+                                        </div>
+                                        <span className="text-slate-500">Waiting for player...</span>
+                                    </div>
+                                )}
+                            </motion.div>
+                        );
+                    })}
+
+                    {/* Host start button */}
+                    {isHost && (
+                        <div className="pt-2">
+                            {startError && <p className="text-red-400 text-sm mb-2 text-center">{startError}</p>}
+                            <button
+                                onClick={handleStart}
+                                className="btn-neon w-full bg-orange-500 border-orange-400 text-white text-xl py-4"
+                            >
+                                🚀 START GAME
+                            </button>
+                            <p className="text-slate-600 text-xs text-center mt-2">All non-host players must be ready</p>
+                        </div>
+                    )}
+
+                    {!isHost && (
+                        <p className="text-center text-slate-600 text-sm pt-4">Waiting for host to start the game...</p>
+                    )}
+                </div>
 
                 {/* Chat panel */}
                 <div className="w-72 flex flex-col glass rounded-xl overflow-hidden border border-white/10">
