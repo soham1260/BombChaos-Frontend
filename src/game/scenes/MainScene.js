@@ -57,6 +57,72 @@ export class MainScene extends Phaser.Scene {
         );
     }
 
+    // Input
+    _setupInput() {
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        // M key — mute / unmute all Phaser sounds
+        this.mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+        this._lastMoveEmit = 0;
+        this._spaceDown = false;
+    }
+
+    // Emitters
+    _setupEmitters() {
+        // Keep emitters stopped (quantity:0) and use .explode(count,x,y) for bursts.
+        this.sparkEmitter = this.add.particles(0, 0, 'spark', {
+            speed: { min: 20, max: 60 },
+            scale: { start: 0.5, end: 0 },
+            lifespan: 500,
+            emitting: false,
+            blendMode: 'ADD',
+        }).setDepth(10);
+
+        this.fireEmitter = this.add.particles(0, 0, 'particle', {
+            speed: { min: 60, max: 180 },
+            scale: { start: 1, end: 0 },
+            lifespan: 700,
+            emitting: false,
+            tint: [0xff4500, 0xff6500, 0xffaa00],
+            blendMode: 'ADD',
+        }).setDepth(10);
+
+        this.starEmitter = this.add.particles(0, 0, 'spark', {
+            speed: { min: 80, max: 150 },
+            scale: { start: 0.8, end: 0 },
+            lifespan: 600,
+            emitting: false,
+            tint: [0xffd700, 0x00ffff, 0xff69b4],
+            blendMode: 'ADD',
+        }).setDepth(10);
+
+        this.deathEmitter = this.add.particles(0, 0, 'particle', {
+            speed: { min: 100, max: 300 },
+            scale: { start: 1.2, end: 0 },
+            lifespan: 900,
+            emitting: false,
+            tint: [0xff3333, 0xff9900, 0xffffff],
+            blendMode: 'ADD',
+        }).setDepth(10);
+    }
+
+    // External event listeners (events from React)
+    _setupExternalListeners() {
+        this._onGameStateUpdate = (e) => this._applyGameState(e.detail);
+        this._onExplosion = (e) => this._handleExplosion(e.detail);
+        this._onPlayerEliminated = (e) => this._handlePlayerElimination(e.detail);
+        this._onPowerupCollected = (e) => this._handlePowerupCollected(e.detail);
+        this._onBombPlaced = (e) => this._handleBombPlaced(e.detail);
+
+        window.addEventListener('phaser_game_state', this._onGameStateUpdate);
+        window.addEventListener('phaser_explosion', this._onExplosion);
+        window.addEventListener('phaser_player_eliminated', this._onPlayerEliminated);
+        window.addEventListener('phaser_power_up_collected', this._onPowerupCollected);
+        window.addEventListener('phaser_bomb_placed', this._onBombPlaced);
+    }
+
     shutdown() {
         window.removeEventListener('phaser_game_state', this._onGameStateUpdate);
         window.removeEventListener('phaser_explosion', this._onExplosion);
