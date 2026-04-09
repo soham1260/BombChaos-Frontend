@@ -123,6 +123,47 @@ export class MainScene extends Phaser.Scene {
         window.addEventListener('phaser_bomb_placed', this._onBombPlaced);
     }
 
+    // Update loop
+
+    update(time) {
+        this._handleInput(time);
+    }
+
+    _handleInput(time) {
+        const up = this.cursors.up.isDown || this.wasd.W.isDown;
+        const down = this.cursors.down.isDown || this.wasd.S.isDown;
+        const left = this.cursors.left.isDown || this.wasd.A.isDown;
+        const right = this.cursors.right.isDown || this.wasd.D.isDown;
+
+        let dx = 0, dy = 0;
+        if (left) dx = -1;
+        else if (right) dx = 1;
+        if (up) dy = -1;
+        else if (down) dy = 1;
+
+        // Throttle move events to 30 Hz
+        if ((dx !== 0 || dy !== 0) && time - this._lastMoveEmit > 33) {
+            this._lastMoveEmit = time;
+            window.dispatchEvent(new CustomEvent('game_player_move', { detail: { dx, dy } }));
+        } else if (dx === 0 && dy === 0) {
+            // Send stop
+            if (time - this._lastMoveEmit > 100) {
+                this._lastMoveEmit = time;
+                window.dispatchEvent(new CustomEvent('game_player_move', { detail: { dx: 0, dy: 0 } }));
+            }
+        }
+
+        // Bomb placement
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+            window.dispatchEvent(new CustomEvent('game_place_bomb'));
+        }
+
+        // Remote detonate
+        if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
+            window.dispatchEvent(new CustomEvent('game_detonate_bomb'));
+        }
+    }
+
     shutdown() {
         window.removeEventListener('phaser_game_state', this._onGameStateUpdate);
         window.removeEventListener('phaser_explosion', this._onExplosion);
