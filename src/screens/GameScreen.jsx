@@ -1,7 +1,3 @@
-/**
- * @file GameScreen.jsx
- * @description Game screen: Phaser canvas + React HUD overlay.
- */
 import React, { useState } from 'react';
 import PhaserGame from '../game/PhaserGame.jsx';
 import HUD from '../components/HUD.jsx';

@@ -1,7 +1,3 @@
-/**
- * @file ResultsScreen.jsx
- * @description Post-game results with Framer Motion confetti, scoreboard, and navigation.
- */
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { socket } from '../socket.js';
