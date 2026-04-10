@@ -10,6 +10,14 @@ export const socket = io(SERVER_URL, {
     reconnectionDelayMax: 5000,
 });
 
+export function connectSocket(token) {
+    socket.auth = { token };
+    if (socket.connected) {
+        socket.disconnect();
+    }
+    socket.connect();
+}
+
 socket.on('connect', () => console.log('[Socket] Connected:', socket.id));
 socket.on('disconnect', (reason) => console.warn('[Socket] Disconnected:', reason));
 socket.on('connect_error', (err) => console.error('[Socket] Error:', err.message));

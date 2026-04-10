@@ -29,7 +29,6 @@ Thumbs.db
 .idea/
 
 # Package lock files (optional, if you want to ignore)
-package-lock.json
 yarn.lock
 
 # Coverage directory

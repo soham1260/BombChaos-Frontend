@@ -49,6 +49,7 @@ export class MainScene extends Phaser.Scene {
         this._setupInput();
         this._setupEmitters();
         this._setupExternalListeners();
+        this._setupSound();
 
         this.cameras.main.setBackgroundColor('#0a0a0f');
         this.cameras.main.centerOn(
@@ -56,6 +57,82 @@ export class MainScene extends Phaser.Scene {
             (GRID_H * TILE_SIZE) / 2
         );
     }
+
+    _setupSound() {
+        if (this.cache.audio.exists('game_bg')) {
+            const muted = localStorage.getItem('music_muted') === 'true';
+            this.bgMusic = this.sound.add('game_bg', { loop: true, volume: muted ? 0 : 0.9 });
+            if (!muted) {
+                this.bgMusic.play();
+            } else {
+                // Start paused; will resume when user unmutes
+                this.bgMusic.play();
+                this.bgMusic.setVolume(0);
+            }
+        }
+    }
+
+    playSound(key, cfg = {}) {
+        if (!this.cache.audio.exists(key)) return;
+        const existing = this.sound.get(key);
+        if (existing && existing.isPlaying) existing.stop();
+        this.sound.play(key, { volume: 0.6, ...cfg });
+    }
+
+    _generateMap() {
+            const rng = mulberry32(this.mapSeed);
+    
+            this.softBlockGroup = this.add.group();
+    
+            for (let y = 0; y < GRID_H; y++) {
+                for (let x = 0; x < GRID_W; x++) {
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+    
+                    // Always render floor
+                    this.add.image(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 'floor').setDepth(0);
+    
+                    let tileType = TILE.EMPTY;
+                    if (x === 0 || x === GRID_W - 1 || y === 0 || y === GRID_H - 1) {
+                        tileType = TILE.WALL;
+                    } else if (x % 2 === 0 && y % 2 === 0) {
+                        tileType = TILE.WALL;
+                    } else if (this._isSpawnSafe(x, y)) {
+                        tileType = TILE.EMPTY;
+                    } else {
+                        tileType = rng() < 0.60 ? TILE.SOFT : TILE.EMPTY;
+                    }
+    
+                    if (tileType === TILE.WALL) {
+                        this.add.image(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 'wall').setDepth(1);
+                    } else if (tileType === TILE.SOFT) {
+                        const block = this.add.image(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 'soft').setDepth(1);
+                        this.softBlocks.set(`${x},${y}`, block);
+                        this.softBlockGroup.add(block);
+                    }
+                }
+            }
+        }
+    
+    _isSpawnSafe(x, y) {
+            for (const sp of SPAWN_POSITIONS) {
+                if (Math.abs(x - sp.x) + Math.abs(y - sp.y) <= 2) return true;
+            }
+            return false;
+    }
+
+    _setupPlayers() {
+        this.gameStartPlayers.forEach((p) => {
+            const spawn = SPAWN_POSITIONS[p.slotIndex];
+            if (!spawn) return;
+            const px = spawn.x * TILE_SIZE + TILE_SIZE / 2;
+            const py = spawn.y * TILE_SIZE + TILE_SIZE / 2;
+            const key = PLAYER_KEYS[p.slotIndex] || 'player_red';
+            const sprite = this.add.sprite(px, py, key).setDepth(3).setScale(0.9);
+            this.playerSprites.set(p.id, sprite);
+        });
+    }
+
 
     // Input
     _setupInput() {
@@ -116,17 +193,37 @@ export class MainScene extends Phaser.Scene {
         this._onPowerupCollected = (e) => this._handlePowerupCollected(e.detail);
         this._onBombPlaced = (e) => this._handleBombPlaced(e.detail);
 
+        this._onMusicMuted = (e) => {
+            if (!this.bgMusic) return;
+            const muted = e.detail;
+            this.tweens.add({
+                targets: this.bgMusic,
+                volume: muted ? 0 : 0.9,
+                duration: 400,
+                ease: 'Quad.Out',
+            });
+        };
+
         window.addEventListener('phaser_game_state', this._onGameStateUpdate);
         window.addEventListener('phaser_explosion', this._onExplosion);
         window.addEventListener('phaser_player_eliminated', this._onPlayerEliminated);
         window.addEventListener('phaser_power_up_collected', this._onPowerupCollected);
         window.addEventListener('phaser_bomb_placed', this._onBombPlaced);
+        window.addEventListener('music_muted_change', this._onMusicMuted);
     }
 
     // Update loop
 
     update(time) {
         this._handleInput(time);
+        if (Phaser.Input.Keyboard.JustDown(this.mKey)) {
+            const muted = localStorage.getItem('music_muted') === 'true';
+            const next = !muted;
+            localStorage.setItem('music_muted', String(next));
+            window.dispatchEvent(new CustomEvent('music_muted_change', { detail: next }));
+            const store = window.__gameStore;
+            if (store) store.getState().toggleMusicMuted();
+        }
     }
 
     _handleInput(time) {
@@ -405,5 +502,14 @@ export class MainScene extends Phaser.Scene {
         window.removeEventListener('phaser_player_eliminated', this._onPlayerEliminated);
         window.removeEventListener('phaser_power_up_collected', this._onPowerupCollected);
         window.removeEventListener('phaser_bomb_placed', this._onBombPlaced);
+        window.removeEventListener('music_muted_change', this._onMusicMuted);
+
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+            this.bgMusic.destroy();
+            this.bgMusic = null;
+        }
+
+        this.sound.removeAll();
     }
 }

@@ -1,7 +1,3 @@
-/**
- * @file LoadingSpinner.jsx
- * @description Full screen loading state while Phaser assets preload.
- */
 import React from 'react';
 import { motion } from 'framer-motion';
 
