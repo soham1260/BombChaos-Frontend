@@ -3,6 +3,20 @@ export class PreloadScene extends Phaser.Scene {
         super({ key: 'PreloadScene' });
     }
 
+    preload() {
+        const SOUNDS = [
+            'bomb_explosion',
+            'bomb_placement',
+            'powerup',
+            'box_explosion',
+            'game_bg',
+            'lobby_bg',
+        ];
+        SOUNDS.forEach((key) =>
+            this.load.audio(key, `assets/sounds/${key}.wav`)
+        );
+    }
+    
     // Game UI elements
     create() {
         const g = this.add.graphics();
