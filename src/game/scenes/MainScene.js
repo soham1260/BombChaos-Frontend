@@ -164,6 +164,241 @@ export class MainScene extends Phaser.Scene {
         }
     }
 
+    // Apply server game state
+
+    _applyGameState(state) {
+        if (!state) return;
+        this.lastGameState = state;
+
+        state.players.forEach(p => {
+            const sprite = this.playerSprites.get(p.id);
+            if (!sprite) return;
+            if (!p.alive) {
+                sprite.setVisible(false);
+                return;
+            }
+            sprite.setVisible(true);
+            this.tweens.add({
+                targets: sprite,
+                x: p.x,
+                y: p.y,
+                duration: 50,
+                ease: 'Linear',
+            });
+        });
+
+        this._syncBombs(state.bombs);
+
+        this._syncFires(state.fires);
+
+        this._syncPowerups(state.powerups);
+
+        if (state.grid) this._syncGrid(state.grid);
+    }
+
+    // Sync client-side soft block sprites against the authoritative server grid
+    _syncGrid(grid) {
+        for (const [key, block] of this.softBlocks) {
+            if (!block.active) {
+                // Already destroyed, clean up the map entry
+                this.softBlocks.delete(key);
+                continue;
+            }
+            const [x, y] = key.split(',').map(Number);
+            
+            if (grid[y]?.[x] !== TILE.SOFT) {
+                block.destroy();
+                this.softBlocks.delete(key);
+            }
+        }
+    }
+
+    _syncBombs(bombs) {
+        const currentIds = new Set();
+        bombs.forEach(b => {
+            currentIds.add(b.id);
+            if (!this.bombSprites.has(b.id)) {
+                const sprite = this.add.sprite(
+                    b.x * TILE_SIZE + TILE_SIZE / 2,
+                    b.y * TILE_SIZE + TILE_SIZE / 2,
+                    'bomb'
+                ).setDepth(2);
+
+                // Pulsing tween accelerating as timer runs low
+                const tween = this.tweens.add({
+                    targets: sprite,
+                    scaleX: 1.2, scaleY: 1.2,
+                    duration: 400,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut',
+                });
+
+                // Fuse spark
+                this.sparkEmitter.explode(3, b.x * TILE_SIZE + TILE_SIZE / 2, b.y * TILE_SIZE + 8);
+
+                this.bombSprites.set(b.id, sprite);
+                this.bombTweens.set(b.id, tween);
+            }
+
+            // Accelerate pulse as fuse runs low
+            const sprite = this.bombSprites.get(b.id);
+            const tween = this.bombTweens.get(b.id);
+            if (tween && b.ticksLeft < 60) {
+                const speed = Phaser.Math.Linear(80, 400, b.ticksLeft / 60);
+                tween.timeScale = 400 / Math.max(speed, 80);
+            }
+        });
+
+        // Remove detonated bomb sprites
+        for (const [id, sprite] of this.bombSprites) {
+            if (!currentIds.has(id)) {
+                this.bombTweens.get(id)?.stop();
+                this.bombTweens.delete(id);
+                sprite.destroy();
+                this.bombSprites.delete(id);
+            }
+        }
+    }
+
+    _syncFires(fires) {
+        const currentKeys = new Set();
+        fires.forEach(f => {
+            const key = `${f.x},${f.y}`;
+            currentKeys.add(key);
+            if (!this.fireSprites.has(key)) {
+                const sprite = this.add.sprite(
+                    f.x * TILE_SIZE + TILE_SIZE / 2,
+                    f.y * TILE_SIZE + TILE_SIZE / 2,
+                    'fire'
+                ).setDepth(2).setAlpha(0.9);
+                this.fireSprites.set(key, sprite);
+            }
+        });
+        for (const [key, sprite] of this.fireSprites) {
+            if (!currentKeys.has(key)) {
+                sprite.destroy();
+                this.fireSprites.delete(key);
+            }
+        }
+    }
+
+    _syncPowerups(powerups) {
+        const currentKeys = new Set();
+        powerups.forEach(pu => {
+            const key = `${pu.x},${pu.y}`;
+            currentKeys.add(key);
+            if (!this.powerupSprites.has(key)) {
+                const sprite = this.add.sprite(
+                    pu.x * TILE_SIZE + TILE_SIZE / 2,
+                    pu.y * TILE_SIZE + TILE_SIZE / 2,
+                    `pu_${pu.type}`
+                ).setDepth(2).setScale(0.7);
+                sprite.setData('type', pu.type);
+                // Spinning animation
+                this.tweens.add({
+                    targets: sprite,
+                    angle: 360,
+                    duration: 2000,
+                    repeat: -1,
+                    ease: 'Linear',
+                });
+                this.powerupSprites.set(key, sprite);
+            }
+        });
+        for (const [key, sprite] of this.powerupSprites) {
+            if (!currentKeys.has(key)) {
+                sprite.destroy();
+                this.powerupSprites.delete(key);
+            }
+        }
+    }
+
+    _handleExplosion({ cells, x, y }) {
+        this.cameras.main.shake(200, 0.015);
+
+        this.playSound('bomb_explosion', { volume: 0.7 });
+
+        this.fireEmitter.explode(30, x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2);
+
+        let hasDestroyedBlock = false;
+        cells?.forEach(cell => {
+            const key = `${cell.x},${cell.y}`;
+            const block = this.softBlocks.get(key);
+            
+            if (block && block.active) {
+                hasDestroyedBlock = true;
+                this.softBlocks.delete(key);
+                this.tweens.add({
+                    targets: block,
+                    x: block.x + 4,
+                    duration: 40,
+                    yoyo: true,
+                    repeat: 3,
+                    onComplete: () => {
+                        if (block.active) block.destroy();
+                    },
+                });
+            }
+        });
+        // Play box break sound only when at least one box was destroyed
+        if (hasDestroyedBlock) {
+            this.playSound('box_explosion', { volume: 0.55 });
+        }
+    }
+
+    _handlePlayerElimination({ playerId, slotIndex }) {
+        const sprite = this.playerSprites.get(playerId);
+        if (!sprite) return;
+        // Death confetti burst
+        this.deathEmitter.explode(40, sprite.x, sprite.y);
+        // Shrink and fade
+        this.tweens.add({
+            targets: sprite,
+            scaleX: 0, scaleY: 0,
+            alpha: 0,
+            duration: 400,
+            ease: 'Back.In',
+            onComplete: () => sprite.setVisible(false),
+        });
+    }
+
+    _handlePowerupCollected({ x, y, type }) {
+        const key = `${x},${y}`;
+        const sprite = this.powerupSprites.get(key);
+        if (sprite) {
+            this.starEmitter.explode(15, sprite.x, sprite.y);
+            sprite.destroy();
+            this.powerupSprites.delete(key);
+        }
+
+        this.playSound('powerup', { volume: 0.7 });
+
+        const label = PU_LABELS[type] || type;
+        const tx = x * TILE_SIZE + TILE_SIZE / 2;
+        const ty = y * TILE_SIZE;
+        const text = this.add.text(tx, ty, label, {
+            fontSize: '14px', fontFamily: 'Outfit', color: '#ffd700',
+            stroke: '#000', strokeThickness: 3,
+        }).setOrigin(0.5, 1).setDepth(20);
+        this.tweens.add({
+            targets: text,
+            y: ty - 40,
+            alpha: 0,
+            duration: 1500,
+            ease: 'Quad.Out',
+            onComplete: () => text.destroy(),
+        });
+    }
+
+    _handleBombPlaced(bomb) {
+        this.sparkEmitter.explode(5,
+            bomb.x * TILE_SIZE + TILE_SIZE / 2,
+            bomb.y * TILE_SIZE + TILE_SIZE / 2
+        );
+        this.playSound('bomb_placement', { volume: 0.65 });
+    }
+
     shutdown() {
         window.removeEventListener('phaser_game_state', this._onGameStateUpdate);
         window.removeEventListener('phaser_explosion', this._onExplosion);
