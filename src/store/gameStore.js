@@ -50,8 +50,17 @@ export const useGameStore = create((set, get) => ({
         }, 3000);
     },
 
+    isMusicMuted: localStorage.getItem('music_muted') === 'true',
+    toggleMusicMuted: () =>
+        set(s => {
+            const next = !s.isMusicMuted;
+            localStorage.setItem('music_muted', String(next));
+            window.dispatchEvent(new CustomEvent('music_muted_change', { detail: next }));
+            return { isMusicMuted: next };
+        }),
+
     // Navigation 
-    screen: 'landing',   // 'landing' | 'lobby' | 'game' | 'results'
+    screen: 'login',   // 'login' | 'register' | 'landing' | 'lobby' | 'game' | 'results'
     setScreen: (screen) => set({ screen }),
 
     // Reset 
