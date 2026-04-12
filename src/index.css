@@ -29,9 +29,9 @@ input:-webkit-autofill {
   transition: background-color 9999s ease-in-out 0s;
 }
 
-.glow-title {
+/* .glow-title {
   animation: glowPulse 2.5s ease-in-out infinite;
-}
+} */
 
 /* Scanline overlay */
 @keyframes scanline {

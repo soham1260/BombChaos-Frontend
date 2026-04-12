@@ -48,18 +48,18 @@ export default function LandingScreen() {
     }
 
     return (
-        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden scanlines"
+        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden"
             style={{ background: 'radial-gradient(ellipse at center, #1a0a00 0%, #0a0a0f 70%)' }}>
 
             {/* Floating ember particles */}
-            {[...Array(16)].map((_, i) => (
+            {/* {[...Array(16)].map((_, i) => (
                 <motion.div key={i}
                     className="absolute w-1 h-1 rounded-full bg-orange-400 opacity-70"
                     style={{ left: `${Math.random() * 100}%`, bottom: 0 }}
                     animate={{ y: [0, -(300 + Math.random() * 400)], opacity: [0.7, 0], x: [0, (Math.random() - 0.5) * 80] }}
                     transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5, ease: 'linear' }}
                 />
-            ))}
+            ))} */}
 
             {/* Music toggle — top left */}
             <div className="absolute top-4 left-4 z-10">
@@ -80,7 +80,7 @@ export default function LandingScreen() {
                         onClick={handleLogout}
                         className="glass rounded-xl px-3 py-2 text-slate-400 hover:text-red-400 transition text-sm"
                     >
-                        ⏻ Logout
+                        Logout
                     </button>
                 </div>
             )}
@@ -91,7 +91,7 @@ export default function LandingScreen() {
             </motion.div>
 
             {/* Title */}
-            <h1 className="glow-title text-6xl md:text-8xl font-black tracking-tight mb-2 text-orange-400"
+            <h1 className="text-6xl md:text-8xl font-black tracking-tight mb-2 text-orange-400"
                 style={{ letterSpacing: '-0.02em' }}>
                 BOMB CHAOS
             </h1>
@@ -148,14 +148,14 @@ export default function LandingScreen() {
                                 onClick={handleCreate}
                                 className="btn-neon flex-1 bg-orange-500 border-orange-400 text-white"
                             >
-                                {loading ? '...' : '🏠 CREATE ROOM'}
+                                {loading ? '...' : ' CREATE ROOM'}
                             </button>
                             <button
                                 id="join-room-btn"
                                 onClick={() => { setMode('join'); setError(''); }}
                                 className="btn-neon flex-1 bg-transparent border-sky-400 text-sky-400"
                             >
-                                🔗 JOIN ROOM
+                                 JOIN ROOM
                             </button>
                         </>
                     ) : (

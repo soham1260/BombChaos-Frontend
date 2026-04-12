@@ -43,15 +43,6 @@ export default function Login() {
         <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden scanlines"
             style={{ background: 'radial-gradient(ellipse at center, #1a0a00 0%, #0a0a0f 70%)' }}>
 
-            {/* Floating ember particles */}
-            {[...Array(12)].map((_, i) => (
-                <motion.div key={i}
-                    className="absolute w-1 h-1 rounded-full bg-orange-400 opacity-70"
-                    style={{ left: `${Math.random() * 100}%`, bottom: 0 }}
-                    animate={{ y: [0, -(200 + Math.random() * 300)], opacity: [0.7, 0] }}
-                    transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5, ease: 'linear' }}
-                />
-            ))}
 
             <motion.div className="bomb-float mb-4 select-none" style={{ fontSize: 80 }}>💣</motion.div>
 
