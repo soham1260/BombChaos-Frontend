@@ -18,10 +18,7 @@ const SLOT_TEXT = {
 };
 
 const CHAR_EMOJIS = ['🤖', '🧨', '👾', '🦊'];
-const CHAR_NAMES = ['Robo', 'Kaboom', 'Alien', 'Fox'];
 const CHARACTERS = ['bomber1', 'bomber2', 'bomber3', 'bomber4'];
-
-const TAUNT_LIST = ["You'll never catch me!", "Ready to explode?", "Bomb squad activate!", "Say your prayers!"];
 
 export default function LobbyScreen() {
     const { roomCode, roomState, mySocketId, setScreen, addEvent, resetAll } = useGameStore();
@@ -55,11 +52,6 @@ export default function LobbyScreen() {
         if (!chatInput.trim()) return;
         socket.emit('chat_message', { text: chatInput.trim() });
         setChatInput('');
-    }
-
-    function handleTaunt() {
-        const t = TAUNT_LIST[Math.floor(Math.random() * TAUNT_LIST.length)];
-        socket.emit('player_taunt', { taunt: t });
     }
 
     function handleLeave() {
@@ -175,7 +167,7 @@ export default function LobbyScreen() {
                                 onClick={handleStart}
                                 className="btn-neon w-full bg-orange-500 border-orange-400 text-white text-xl py-4"
                             >
-                                🚀 START GAME
+                                 START GAME
                             </button>
                             <p className="text-slate-600 text-xs text-center mt-2">All non-host players must be ready</p>
                         </div>
@@ -190,10 +182,6 @@ export default function LobbyScreen() {
                 <div className="w-72 flex flex-col glass rounded-xl overflow-hidden border border-white/10">
                     <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
                         <span className="font-bold text-sm text-slate-300">💬 Chat</span>
-                        <button onClick={handleTaunt}
-                            className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/30 transition">
-                            😂 Taunt
-                        </button>
                     </div>
                     <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
                         {chatMessages.length === 0 && (
